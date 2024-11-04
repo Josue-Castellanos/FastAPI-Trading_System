@@ -1,13 +1,9 @@
 from random import randrange
-from typing import Optional
 from fastapi import FastAPI, Response, status, HTTPException
-from fastapi.params import Body
 from pydantic import BaseModel
-from dotenv import load_dotenv
+from .config import HOST, USER, PASSWORD, DATABASE
 import pymysql.cursors
-import os
 import time
-from pathlib import Path
 
 
 # CRUD app -> Create, Read, Update, Delete
@@ -25,14 +21,6 @@ class PostModify(BaseModel):
 class PostCreate(BaseModel):
     user: int
     body: PostModify
-
-
-# Load environment variables from .env
-load_dotenv(dotenv_path=Path('app/.env'))
-HOST = os.getenv("host")
-USER = os.getenv("user")
-PASSWORD = os.getenv("password")
-DATABASE = os.getenv("database")
 
 
 # Connect to MySQL Database, loop until the connection has established
@@ -94,6 +82,22 @@ def get_posts():
 
 
 # Read == GET
+# Retrieve the latest singular Post
+@app.get("/posts/latest")   
+def get_latest_post():
+    query = """
+    SELECT * FROM posts 
+    ORDER BY id DESC LIMIT 1
+    """  
+    cursor.execute(query)
+    latest_post = cursor.fetchone()
+    if not latest_post:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Post not found")
+    return {"post_detail" : latest_post}
+
+
+# Read == GET
 # Retrieve one singular Post with ID
 @app.get("/posts/{id}")     
 def get_post(id: int):          # (id: int) -> Validation to confirm if ID can be automaically turned into an integer, 
@@ -109,22 +113,6 @@ def get_post(id: int):          # (id: int) -> Validation to confirm if ID can b
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Post with id: {id} not found")
     return {"post_detail" : post}
-
-
-# Read == GET
-# Retrieve the latest singular Post
-@app.get("/posts/latest")   
-def get_latest_post():
-    query = """
-    SELECT * FROM posts 
-    ORDER BY id DESC LIMIT 1
-    """  
-    cursor.execute(query)
-    latest_post = cursor.fetchone()
-    if not latest_post:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail=f"Post not found")
-    return {"post_detail" : latest_post}
 
 
 # Read == GET
