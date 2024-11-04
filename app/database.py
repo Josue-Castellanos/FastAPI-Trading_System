@@ -1,17 +1,34 @@
-from typing import Annotated
-from fastapi import Depends, FastAPI, HTTPException, Query
-from sqlmodel import Field, Session, SQLModel, create_engine, select
+from sqlmodel import create_engine, Session, SQLModel, select
+from . import models
+import time
+import pymysql.cursors
+from .config import DATABASE_URL, HOST, USER, PASSWORD, DATABASE
 
 
-
-# PyMySQL
-PYMYSQL_DATABSE_URL = 'mysql+pymysql://scott:tiger@localhost/foo'
-engine = create_engine(PYMYSQL_DATABSE_URL)
-
-# default
-MYSQL_DATABASE_URL = 'mysql://scott:tiger@localhost/foo'
-engine = create_engine(MYSQL_DATABASE_URL)
-
-
-DATABASE_URL = "mysql+mysqlconnector://root:password@localhost/mydatabase"
+# SQLModel
 engine = create_engine(DATABASE_URL)
+
+
+def get_session():
+    with Session(engine) as db:
+        yield db 
+
+
+def connect_to_database():
+    while True:
+        try:
+            connection = pymysql.connect(
+                host=HOST,
+                user=USER,
+                password=PASSWORD,
+                database=DATABASE,
+                charset='utf8mb4',
+                cursorclass=pymysql.cursors.DictCursor
+            )
+            cursor = connection.cursor()
+            print("Connected to Database!")
+            return connection, cursor
+        except Exception as error:
+            print("Connection to Database failed!")
+            print("Error: ", error)
+            time.sleep(2)
