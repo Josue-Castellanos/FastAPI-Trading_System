@@ -1,11 +1,10 @@
 from sqlmodel import create_engine, Session, SQLModel, select
 from . import models
 import time
-import pymysql.cursors
-from .config import DATABASE_URL, HOST, USER, PASSWORD, DATABASE
+from sqlalchemy.exc import OperationalError
+from .config import DATABASE_URL
 
 
-# SQLModel
 engine = create_engine(DATABASE_URL)
 
 
@@ -17,18 +16,11 @@ def get_session():
 def connect_to_database():
     while True:
         try:
-            connection = pymysql.connect(
-                host=HOST,
-                user=USER,
-                password=PASSWORD,
-                database=DATABASE,
-                charset='utf8mb4',
-                cursorclass=pymysql.cursors.DictCursor
-            )
-            cursor = connection.cursor()
-            print("Connected to Database!")
-            return connection, cursor
-        except Exception as error:
-            print("Connection to Database failed!")
-            print("Error: ", error)
+            # Try connecting to the database
+            with engine.connect() as connection:
+                print("Connected to Database!")
+                break  # Exit loop if successful
+        except OperationalError as error:
+            print("Connection to Database failed! Retrying in 2 seconds...")
+            print("Error:", error)
             time.sleep(2)
