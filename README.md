@@ -54,14 +54,13 @@ This project is a **Social Media Application** for an [**Automated Trading Syste
 Create a `.env` file in the root directory with the following variables:
 
 ```env
-host=localhost
-user=root
-database=fastapi
-password=yourpassword
+host=host_name
+user=root_name
+database=database_name
+password=your_password
 secret_key=your_secret_key
 algorithm=HS256
 access_token_expire_minutes=30
-database_url=mysql+mysqlconnector://{user}:{password}@{host}/{database}
 ```
 ### Setup
 1. **Clone the Repository**
