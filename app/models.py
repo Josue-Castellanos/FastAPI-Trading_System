@@ -1,37 +1,22 @@
 from pydantic import EmailStr
-from sqlmodel import SQLModel, Field
+from sqlmodel import SQLModel, Field, Column, BigInteger
 from typing import Optional
 from datetime import datetime
 from sqlalchemy import text
+from enum import Enum as PyEnum
 
 
+"""
+Post Models
+"""
 class PostBase(SQLModel):
-    user_id: int = Field(nullable=False)
+    id: Optional[int] = Field(default=None)
+    user_id: Optional[int] = Field(default=None)
     title: str = Field(nullable=False)
     content: str = Field(nullable=False)
     published: Optional[bool] = Field(nullable=False, default=True,
         sa_column_kwargs={
-            "server_default": text("1")
-        }
-    )
-
-"""
-Schema
-"""
-class Post(PostBase, table=True):
-    id: int = Field(nullable=False, primary_key=True, unique=True)
-    created: datetime = Field(
-        sa_column_kwargs={
-            "server_default": text("CURRENT_TIMESTAMP"),
-            "nullable": False
-        }
-    )
-    last_modified: Optional[datetime] = Field(
-        sa_column_kwargs={
-            "server_default": text("NULL ON UPDATE CURRENT_TIMESTAMP"),
-            "nullable": True
-        }
-    )
+            "server_default": text("1")})
 
 
 class PostUpdate(PostBase):
@@ -41,43 +26,46 @@ class PostUpdate(PostBase):
 
 
 class PostPublic(SQLModel):
+    # username: str
     title: str
     content: str
     created: datetime
-    # last_modified: Optional[datetime]
+    last_modified: Optional[datetime]
+    upvotes: int
+    downvotes: int
+    # owner: PostBase    
 
 
 class PostCreate(PostBase):
     pass
 
-"""
-"""
 
+"""
+User Models
+"""
 class UserBase(SQLModel):
-    # first_name: str = Field(nullable=False)
-    # last_name: str = Field(nullable=False)
-    # user_name: str = Field(nullable=False, unique=True)
+    id: Optional[int] = Field(default=None)
     email: EmailStr = Field(nullable=False, unique=True)
     password: str = Field(nullable=False)
-    # birth_date: datetime = Field(nullable=False)
-    # address: str = Field(nullable=False)
-    # contact: int = Field(nullable=False)
+    first_name: Optional[str] = Field(default=None)
+    last_name: Optional[str] = Field(default=None)
+    user_name: Optional[str] = Field(default=None, unique=True)
+    birth_date: Optional[datetime] = Field(default=None)
+    address: Optional[str] = Field(default=None)
+    contact: Optional[int] = Field(default=None, sa_column=Column(BigInteger))
+    # disabled: Optional[bool] = Field(default=None, nullable=True)
 
 
-class User(UserBase, table=True):
-    id: int = Field(nullable=False, primary_key=True, unique=True)
-    created: datetime = Field(
-        sa_column_kwargs={
-            "server_default": text("CURRENT_TIMESTAMP"),
-            "nullable": False
-        }
-    )
-    last_modified: Optional[datetime] = Field(
-        sa_column_kwargs={
-            "server_default": text("NULL ON UPDATE CURRENT_TIMESTAMP"),
-            "nullable": True
-        }
-    )
+class UserUpdate(UserBase):
+    email: Optional[EmailStr] = None
+    password: Optional[str] = None
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    user_name: Optional[str] = None
+    birth_date: Optional[datetime] = None
+    address: Optional[str] = None
+    contact: Optional[int] = None
+    # disabled: Optional[bool] = None
 
 
 class UserCreate(UserBase):
@@ -87,3 +75,32 @@ class UserCreate(UserBase):
 class UserPublic(SQLModel):
     email: EmailStr
     created: datetime
+
+
+class UserInDB(UserBase):
+    hashed_password: str
+
+"""
+Token
+"""
+class Token(SQLModel):
+    access_token: str
+    token_type: str
+
+
+class TokenData(SQLModel):
+    id: int
+
+"""
+Votes
+"""
+class VoteBase(SQLModel):
+    post_id: Optional[int] = Field(default=None)
+    user_id: Optional[int] = Field(default=None)
+
+class VoteType(PyEnum):
+    upvote = "upvote"
+    downvote = "downvote"
+
+
+
