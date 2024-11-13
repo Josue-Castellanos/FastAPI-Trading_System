@@ -46,11 +46,4 @@ def manage_vote(vote: Vote, session: SessionDep, current_user: Annotated[User, D
         session.add(new_vote)
         session.commit()
         session.refresh(new_vote)
-    return new_vote
-
-
-
-# Another route to retrieve posts that a user has liked
-
-# Another route to retrieve posts that a user has disliked
-
+    return new_vote    
