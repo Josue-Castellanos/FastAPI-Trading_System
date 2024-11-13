@@ -30,19 +30,18 @@ def create_post(post: PostCreate, session: SessionDep, current_user: Annotated[U
 
 # Get all posts in Database using pagination
 # Default: limit <= 100 & max = 100, offsett(skip) = 0, searching str = ""
-@router.get("/", response_model=list[PostPublic])   
+@router.get("/all", response_model=list[PostPublic])   
 def get_posts(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)], 
               limit: Annotated[int, Query(le=100)] = 100, offset: int = 0, search: Optional[str] = ""):
-    stmt = (select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-                    func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-                    func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes')
-                    )
-                    .join(Vote, Vote.post_id == Post.id, isouter=True)
-                    .filter(Post.title.contains(search))
-                    .group_by(Post.id)
-                    .offset(offset)
-                    .limit(limit))
-    posts = session.exec(stmt).all()
+    posts = session.exec(
+        select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               .join(Vote, Vote.post_id == Post.id, isouter=True)
+               .filter(Post.title.contains(search))
+               .group_by(Post.id)
+               .offset(offset)
+               .limit(limit)).all()
     if not posts:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, 
                             detail="Post not found")
@@ -54,8 +53,8 @@ def get_posts(session: SessionDep, current_user: Annotated[User, Depends(get_cur
 def get_latest_post(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):    
     latest_post = session.exec(
         select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-               func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-               func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
                .join(Vote, Vote.post_id == Post.id, isouter=True)
                .filter(Post.user_id == current_user.id)
                .group_by(Post.id)
@@ -68,6 +67,56 @@ def get_latest_post(session: SessionDep, current_user: Annotated[User, Depends(g
     return latest_post
 
 
+# Get all posts active user has upvoted
+@router.get("/upvote", response_model=list[PostPublic])
+def get_upvote_posts(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    upvoted_posts = session.exec(
+        select(Vote.user_id, Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               .join(Vote, Vote.post_id == Post.id, isouter=True)
+               .filter(Vote.user_id == current_user.id)
+               .group_by(Post.id)
+               .having(func.sum(Vote.vote_type == 'upvote') > 0)).all()
+    if not upvoted_posts:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Posts with upvotes not found")
+    return upvoted_posts
+    
+
+# Get all posts active user has downvoted
+@router.get("/downvote", response_model=list[PostPublic])
+def get_downvote_posts(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
+    downvoted_posts = session.exec(
+        select(Vote.user_id, Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               .join(Vote, Vote.post_id == Post.id, isouter=True)
+               .filter(Vote.user_id == current_user.id)
+               .group_by(Post.id)
+               .having(func.sum(Vote.vote_type == 'downvote') > 0)).all()
+    if not downvoted_posts:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail=f"Posts with downvotes not found")
+    return downvoted_posts
+
+
+# Get all active user posts
+@router.get("/me", response_model=list[PostPublic])     
+def get_current_user_posts(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):        
+    posts = session.exec(
+        select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               .join(Vote, Vote.post_id == Post.id, isouter=True)
+               .filter(Post.user_id == current_user.id)
+               .group_by(Post.id)).all()
+    if not posts:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
+                            detail="Posts from Current User not found")
+    return posts
+    
+
 # Get the latest singular user post using User_ID
 @router.get("/latest/user/{user_id}", response_model=PostPublic)   
 def get_latest_user_post(user_id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):
@@ -78,8 +127,8 @@ def get_latest_user_post(user_id: int, session: SessionDep, current_user: Annota
                             detail=f"User not found or does not exist")
     latest_user_post = session.exec(
         select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-               func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-               func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
                .join(Vote, Vote.post_id == Post.id, isouter=True)
                .filter(Post.user_id == user_id)
                .group_by(Post.id)
@@ -89,22 +138,6 @@ def get_latest_user_post(user_id: int, session: SessionDep, current_user: Annota
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
                             detail=f"Post from User {user_id} not found")
     return latest_user_post
-
-
-# Get all active user posts
-@router.get("/user/me", response_model=list[PostPublic])     
-def get_current_user_posts(session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):        
-    posts = session.exec(
-        select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-               func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-               func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes'))
-               .join(Vote, Vote.post_id == Post.id, isouter=True)
-               .filter(Post.user_id == current_user.id)
-               .group_by(Post.id)).all()
-    if not posts:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND,
-                            detail="Posts from Current User not found")
-    return posts
 
 
 # Get all user posts using User ID
@@ -125,8 +158,8 @@ def get_user_posts(user_id: int, session: SessionDep, ):
     """
     posts = session.exec(
         select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-               func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-               func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
                .join(Vote, Vote.post_id == Post.id, isouter=True)
                .filter(Post.user_id == user_id).group_by(Post.id)).all()
     if not posts:
@@ -140,8 +173,8 @@ def get_user_posts(user_id: int, session: SessionDep, ):
 def get_post(id: int, session: SessionDep, current_user: Annotated[User, Depends(get_current_user)]):          
     post = session.exec(
         select(Post.user_id, Post.id, Post.title, Post.content, Post.created, Post.last_modified,
-               func.coalesce(func.count(Vote.vote_type == 'upvote'), 0).label('upvotes'),
-               func.coalesce(func.count(Vote.vote_type == 'downvote'), 0).label('downvotes'))
+               func.coalesce(func.sum(Vote.vote_type == 'upvote'), 0).label('upvotes'),
+               func.coalesce(func.sum(Vote.vote_type == 'downvote'), 0).label('downvotes'))
                .join(Vote, Vote.post_id == Post.id, isouter=True)
                .filter(Post.id == id)
                .group_by(Post.id)).first()
@@ -178,3 +211,5 @@ def delete_post(id: int, session: SessionDep, current_user: Annotated[User, Depe
     session.delete(db_post)
     session.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
