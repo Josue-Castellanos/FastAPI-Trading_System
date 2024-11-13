@@ -1,4 +1,4 @@
-from .models import PostBase, UserBase, VoteBase, VoteType
+from .models import PostBase, UserBase, VoteBase, VoteType, SQLModel
 from sqlmodel import Relationship, Field, text
 from typing import List, Optional
 from datetime import datetime
