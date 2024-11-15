@@ -40,7 +40,7 @@ class UserCreate(UserBase):
 
 class UserPublic(SQLModel):
     email: EmailStr
-    username: str
+    user_name: str
     created: datetime
 
 
@@ -67,7 +67,7 @@ class PostUpdate(PostBase):
 
 
 class PostPublic(SQLModel):
-    # username: str
+    # user_name: str
     title: str
     content: str
     created: datetime
@@ -100,6 +100,4 @@ class VoteBase(SQLModel):
 class VoteType(PyEnum):
     upvote = "upvote"
     downvote = "downvote"
-
-
 
