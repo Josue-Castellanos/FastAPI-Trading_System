@@ -1,4 +1,5 @@
 from passlib.context import CryptContext
+from sqlmodel import select
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -12,8 +13,8 @@ def verify_password(password, hashed_password):
 
 
 def authenticate_user(userInDB, session, username: str, password: str):
-    user = session.query(userInDB).filter(userInDB.email == username).first()
-    # user = session.exec(select(userInDB).where(userInDB.email == username)).first()
+    # user = session.query(userInDB).filter(userInDB.email == username).first()
+    user = session.exec(select(userInDB).where(userInDB.email == username)).first()
     if not user:
         return False
     if not verify_password(password, user.password):

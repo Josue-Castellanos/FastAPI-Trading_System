@@ -37,7 +37,6 @@ class TestSettings(BaseSettings):
 
 
 settings = Settings()
-# test_settings = TestSettings()
 
 
 

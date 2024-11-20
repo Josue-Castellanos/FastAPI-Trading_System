@@ -9,11 +9,12 @@ from ..oauth2 import create_access_token
 
 
 router = APIRouter(
+    prefix = "/login",
     tags=['Authentication']
 )
 
 
-@router.post("/token", response_model=Token)
+@router.post("/", response_model=Token)
 def login(user_credentials: Annotated[OAuth2PasswordRequestForm, Depends()], session: SessionDep):
     user = authenticate_user(User, session, user_credentials.username, user_credentials.password)
 

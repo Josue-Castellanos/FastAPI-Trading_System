@@ -39,6 +39,7 @@ class UserCreate(UserBase):
 
 
 class UserPublic(SQLModel):
+    id: int
     email: EmailStr
     user_name: str
     created: datetime
